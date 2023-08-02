@@ -68,6 +68,7 @@ if load_meta:
     decode = lambda l: ''.join([itos[i] for i in l])
 else:
     enc = Tokenizer()
+    print(f"n_vocab = {enc.n_words}")
     encode = lambda s: enc.encode(s, bos=True, eos=False)
     decode = lambda l: enc.decode(l)
 

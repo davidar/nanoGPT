@@ -21,6 +21,7 @@ import time
 import math
 import pickle
 from contextlib import nullcontext
+from datetime import datetime
 
 import numpy as np
 import torch
@@ -42,7 +43,8 @@ init_from = "scratch"  # 'scratch' or 'resume' or 'gpt2*'
 # wandb logging
 wandb_log = False  # disabled by default
 wandb_project = "owt"
-wandb_run_name = "gpt2"  # 'run' + str(time.time())
+# wandb_run_name = "gpt2"  # 'run' + str(time.time())
+wandb_run_name = "run" + datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
 # data
 dataset = "openwebtext"
 gradient_accumulation_steps = 5 * 8  # used to simulate larger batch sizes
@@ -186,9 +188,9 @@ if init_from == "scratch":
     # determine the vocab size we'll use for from-scratch training
     if meta_vocab_size is None:
         print(
-            "defaulting to vocab_size of GPT-2 to 50304 (50257 rounded up for efficiency)"
+            "defaulting to vocab_size of Llama-2 to 32000"
         )
-    model_args["vocab_size"] = meta_vocab_size if meta_vocab_size is not None else 50304
+    model_args["vocab_size"] = meta_vocab_size if meta_vocab_size is not None else 32000
     gptconf = GPTConfig(**model_args)
     model = GPT(gptconf)
 elif init_from == "resume":
