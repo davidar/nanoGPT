@@ -1,0 +1,3 @@
+[submodule "TinyStories"]
+	path = TinyStories
+	url = https://huggingface.co/datasets/roneneldan/TinyStories
