@@ -55,6 +55,7 @@ n_layer = 12
 n_head = 12
 n_embd = 768
 # dropout = 0.0  # for pretraining 0 is good, for finetuning try 0.1+
+vocab_size = 0
 bias = False  # do we use bias inside LayerNorm and Linear layers?
 # adamw optimizer
 learning_rate = 6e-4  # max learning rate
@@ -134,11 +135,11 @@ ctx = (
 # poor man's data loader
 data_dir = os.path.join("data", dataset)
 train_data = np.memmap(os.path.join(data_dir, "train.bin"), dtype=np.uint16, mode="r")
-val_data = np.memmap(os.path.join(data_dir, "val.bin"), dtype=np.uint16, mode="r")
+valid_data = np.memmap(os.path.join(data_dir, "valid.bin"), dtype=np.uint16, mode="r")
 
 
 def get_batch(split):
-    data = train_data if split == "train" else val_data
+    data = train_data if split == "train" else valid_data
     ix = torch.randint(len(data) - block_size, (batch_size,))
     x = torch.stack(
         [torch.from_numpy((data[i : i + block_size]).astype(np.int64)) for i in ix]
@@ -163,15 +164,6 @@ def get_batch(split):
 iter_num = 0
 best_val_loss = 1e9
 
-# attempt to derive vocab_size from the dataset
-meta_path = os.path.join(data_dir, "meta.pkl")
-meta_vocab_size = None
-if os.path.exists(meta_path):
-    with open(meta_path, "rb") as f:
-        meta = pickle.load(f)
-    meta_vocab_size = meta["vocab_size"]
-    print(f"found vocab_size = {meta_vocab_size} (inside {meta_path})")
-
 # model init
 model_args = dict(
     n_layer=n_layer,
@@ -179,18 +171,12 @@ model_args = dict(
     n_embd=n_embd,
     block_size=block_size,
     bias=bias,
-    vocab_size=None,
+    vocab_size=vocab_size,
     # dropout=dropout,
 )  # start with model_args from command line
 if init_from == "scratch":
     # init a new model from scratch
     print("Initializing a new model from scratch")
-    # determine the vocab size we'll use for from-scratch training
-    if meta_vocab_size is None:
-        print(
-            "defaulting to vocab_size of Llama-2 to 32000"
-        )
-    model_args["vocab_size"] = meta_vocab_size if meta_vocab_size is not None else 32000
     gptconf = GPTConfig(**model_args)
     model = GPT(gptconf)
 elif init_from == "resume":
@@ -216,20 +202,6 @@ elif init_from == "resume":
     model.load_state_dict(state_dict)
     iter_num = checkpoint["iter_num"]
     best_val_loss = checkpoint["best_val_loss"]
-elif init_from.startswith("gpt2"):
-    print(f"Initializing from OpenAI GPT-2 weights: {init_from}")
-    # initialize from OpenAI GPT-2 weights
-    override_args = dict(dropout=dropout)
-    model = GPT.from_pretrained(init_from, override_args)
-    # read off the created config params, so we can store them into checkpoint correctly
-    for k in ["n_layer", "n_head", "n_embd", "block_size", "bias", "vocab_size"]:
-        model_args[k] = getattr(model.config, k)
-# crop down the model block size if desired, using model surgery
-if block_size < model.config.block_size:
-    model.crop_block_size(block_size)
-    model_args[
-        "block_size"
-    ] = block_size  # so that the checkpoint will have the right value
 model.to(device)
 
 # initialize a GradScaler. If enabled=False scaler is a no-op

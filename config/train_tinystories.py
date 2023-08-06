@@ -14,15 +14,16 @@ wandb_project = 'nanogpt-tinystories'
 # wandb_run_name = 'mini-gpt'
 
 dataset = 'tinystories'
-gradient_accumulation_steps = 4
-batch_size = 96
-block_size = 64 # context of up to 256 previous characters
+gradient_accumulation_steps = 1
+batch_size = 200
+block_size = 100 # context of up to this many previous tokens
 
 # baby GPT model :)
 n_layer = 4
 n_head = 16
 n_embd = 768
 # dropout = 0.2
+vocab_size = 4000
 
 learning_rate = 1e-3 # with baby networks can afford to go a bit higher
 max_iters = 100000
