@@ -14,7 +14,7 @@ wandb_project = 'nanogpt-tinystories'
 # wandb_run_name = 'mini-gpt'
 
 dataset = 'tinystories'
-gradient_accumulation_steps = 1
+gradient_accumulation_steps = 4
 batch_size = 200
 block_size = 100 # context of up to this many previous tokens
 
