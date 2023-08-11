@@ -264,6 +264,8 @@ if wandb_log and master_process:
 
     wandb.init(project=wandb_project, name=wandb_run_name, config=config)
 
+    wandb.watch(model, log="all", log_freq=100)
+
 # training loop
 X, Y = get_batch("train")  # fetch the very first batch
 t0 = time.time()
