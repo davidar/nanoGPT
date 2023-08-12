@@ -35,9 +35,9 @@ class CausalSelfAttention(nn.Module):
         super().__init__()
         assert config.n_embd % config.n_head == 0
         # key, query, value projections for all heads, but in a batch
-        self.c_attn = nn.Linear(config.n_embd, 3 * config.n_embd, bias=config.bias)
+        self.c_attn = nn.Linear(config.n_embd, 3 * config.n_embd, bias=False)
         # output projection
-        self.c_proj = nn.Linear(config.n_embd, config.n_embd, bias=config.bias)
+        self.c_proj = nn.Linear(config.n_embd, config.n_embd, bias=False)
         # regularization
         # self.attn_dropout = nn.Dropout(config.dropout)
         # self.resid_dropout = nn.Dropout(config.dropout)
@@ -58,32 +58,50 @@ class CausalSelfAttention(nn.Module):
 
         # causal self-attention; Self-attend: (B, nh, T, hs) x (B, nh, hs, T) -> (B, nh, T, T)
         # efficient attention using Flash Attention CUDA kernels
-        y = F.scaled_dot_product_attention(
-            q, k, v, attn_mask=None, dropout_p=0, is_causal=True
-        )
+        y = F.scaled_dot_product_attention(q, k, v, is_causal=True)
+
+        # manual implementation of attention
+        # att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(k.size(-1)))
+        # att = att.masked_fill(self.bias[:,:,:T,:T] == 0, float('-inf'))
+        # att = F.softmax(att, dim=-1)
+        # att = self.attn_dropout(att)
+        # y = att @ v # (B, nh, T, T) x (B, nh, T, hs) -> (B, nh, T, hs)
+
         # re-assemble all head outputs side by side
         y = y.transpose(1, 2).contiguous().view(B, T, C)
 
         # output projection
         # y = self.resid_dropout(self.c_proj(y))
+        y = self.c_proj(y)
         return y
 
 
 class MLP(nn.Module):
     def __init__(self, config):
         super().__init__()
-        self.c_fc = nn.Linear(config.n_embd, 4 * config.n_embd, bias=config.bias)
-        # self.gelu    = nn.GELU()
-        self.c_proj = nn.Linear(4 * config.n_embd, config.n_embd, bias=config.bias)
-        # self.dropout = nn.Dropout(config.dropout)
+        self.c_fc = nn.Linear(config.n_embd, 4 * config.n_embd, bias=False)
+        self.c_proj = nn.Linear(4 * config.n_embd, config.n_embd, bias=False)
 
     def forward(self, x):
-        x = self.c_fc(x)
-        # x = self.gelu(x)
-        x = x * F.softmax(x, dim=-1)  # SoLU activation
-        x = self.c_proj(x)
-        # x = self.dropout(x)
-        return x
+        # x = self.c_fc(x)
+        # x = x * F.softmax(x, dim=-1)  # SoLU activation
+        # x = self.c_proj(x)
+        # return x
+
+        q = x
+        k = self.c_fc.weight
+        v = self.c_proj.weight.transpose(0, 1)
+
+        # att = (q @ k.transpose(-2, -1)) # * (1.0 / math.sqrt(k.size(-1)))
+        # # att = att.masked_fill(self.bias[:,:,:T,:T] == 0, float('-inf'))
+        # att = F.softmax(att, dim=-1) # * att
+        # # att = self.attn_dropout(att)
+        # y = att @ v # (B, nh, T, T) x (B, nh, T, hs) -> (B, nh, T, hs)
+
+        k = k * math.sqrt(k.size(-1))
+        y = F.scaled_dot_product_attention(q, k, v, is_causal=False)
+
+        return y
 
 
 class Block(nn.Module):
@@ -95,9 +113,7 @@ class Block(nn.Module):
         self.mlp = MLP(config)
 
     def forward(self, x):
-        x = x + self.attn(self.ln_1(x))
-        x = x + self.mlp(self.ln_2(x))
-        return x
+        return x + self.attn(self.ln_1(x)) + self.mlp(self.ln_2(x))
 
 
 @dataclass
@@ -143,7 +159,8 @@ class GPT(nn.Module):
                 nn.init.normal_(p, mean=0.0, std=0.02 / math.sqrt(2 * config.n_layer))
 
         # report number of parameters
-        print("number of parameters: %.2fM" % (sum(p.numel() for p in self.parameters()) / 1e6,))
+        n_params = sum(p.numel() for p in self.parameters())
+        print(f"number of parameters: {n_params / 1e6:.2f}M")
 
     def _init_weights(self, module):
         if isinstance(module, nn.Linear):
