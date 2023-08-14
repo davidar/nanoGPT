@@ -254,10 +254,10 @@ def get_lr(it):
     # 3) in between, use cosine decay down to min learning rate
     decay_ratio = (it - warmup_iters) / (lr_decay_iters - warmup_iters)
     assert 0 <= decay_ratio <= 1
-    coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio))  # coeff ranges 0..1
-    return min_lr + coeff * (learning_rate - min_lr)
-    # lr_ratio = min_lr / learning_rate
-    # return learning_rate * pow(lr_ratio, decay_ratio)
+    # coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio))  # coeff ranges 0..1
+    # return min_lr + coeff * (learning_rate - min_lr)
+    lr_ratio = min_lr / learning_rate
+    return learning_rate * pow(lr_ratio, decay_ratio)
 
 
 # logging

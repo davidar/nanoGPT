@@ -79,29 +79,31 @@ class CausalSelfAttention(nn.Module):
 class MLP(nn.Module):
     def __init__(self, config):
         super().__init__()
-        self.c_fc = nn.Linear(config.n_embd, 6 * config.n_embd, bias=False)
-        self.c_proj = nn.Linear(6 * config.n_embd, config.n_embd, bias=False)
+        self.c_fc = nn.Linear(config.n_embd, 4 * config.n_embd, bias=False)
+        self.c_proj = nn.Linear(4 * config.n_embd, config.n_embd, bias=False)
+        self.gelu = nn.GELU()
 
     def forward(self, x):
-        # x = self.c_fc(x)
-        # x = x * F.softmax(x, dim=-1)  # SoLU activation
-        # x = self.c_proj(x)
-        # return x
+        return self.c_proj(self.gelu(self.c_fc(x)))
+        # # x = self.c_fc(x)
+        # # x = x * F.softmax(x, dim=-1)  # SoLU activation
+        # # x = self.c_proj(x)
+        # # return x
 
-        q = x
-        k = self.c_fc.weight
-        v = self.c_proj.weight.transpose(0, 1)
+        # q = x
+        # k = self.c_fc.weight
+        # v = self.c_proj.weight.transpose(0, 1)
 
-        # att = (q @ k.transpose(-2, -1)) # * (1.0 / math.sqrt(k.size(-1)))
-        # # att = att.masked_fill(self.bias[:,:,:T,:T] == 0, float('-inf'))
-        # att = F.softmax(att, dim=-1) # * att
-        # # att = self.attn_dropout(att)
-        # y = att @ v # (B, nh, T, T) x (B, nh, T, hs) -> (B, nh, T, hs)
+        # # att = (q @ k.transpose(-2, -1)) # * (1.0 / math.sqrt(k.size(-1)))
+        # # # att = att.masked_fill(self.bias[:,:,:T,:T] == 0, float('-inf'))
+        # # att = F.softmax(att, dim=-1) # * att
+        # # # att = self.attn_dropout(att)
+        # # y = att @ v # (B, nh, T, T) x (B, nh, T, hs) -> (B, nh, T, hs)
 
-        k = k * math.sqrt(k.size(-1))
-        y = F.scaled_dot_product_attention(q, k, v, is_causal=False)
+        # k = k * math.sqrt(k.size(-1))
+        # y = F.scaled_dot_product_attention(q, k, v, is_causal=False)
 
-        return y
+        # return y
 
 
 class Block(nn.Module):
