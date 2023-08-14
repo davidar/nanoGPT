@@ -15,7 +15,7 @@ wandb_project = 'nanogpt-tinystories'
 
 dataset = 'tinystories'
 gradient_accumulation_steps = 1
-batch_size = 200
+batch_size = 333
 block_size = 100 # context of up to this many previous tokens
 
 # baby GPT model :)
@@ -23,12 +23,12 @@ n_layer = 4
 n_head = 16
 n_embd = 768
 # dropout = 0.2
-vocab_size = 4000
+vocab_size = 2000
 
-learning_rate = 1e-3 # with baby networks can afford to go a bit higher
+# learning_rate = 1e-3 # with baby networks can afford to go a bit higher
 max_iters = 100000
 lr_decay_iters = 100000 # make equal to max_iters usually
-min_lr = 1e-4 # learning_rate / 10 usually
+# min_lr = 1e-5 # learning_rate / 10 usually
 beta2 = 0.99 # make a bit bigger because number of tokens per iter is small
 
 warmup_iters = 100 # not super necessary potentially
