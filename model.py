@@ -15,6 +15,8 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
+from x_transformers import TransformerWrapper, Decoder
+
 
 class RMSNorm(nn.Module):
     def __init__(self, dim: int, eps: float):
@@ -137,28 +139,41 @@ class GPT(nn.Module):
         assert config.block_size is not None
         self.config = config
 
-        self.transformer = nn.ModuleDict(
-            dict(
-                wte=nn.Embedding(config.vocab_size, config.n_embd),
-                # wpe = nn.Embedding(config.block_size, config.n_embd),
-                # drop = nn.Dropout(config.dropout),
-                h=nn.ModuleList([Block(config) for _ in range(config.n_layer)]),
-                ln_f=RMSNorm(config.n_embd, eps=config.norm_eps),
+        # self.transformer = nn.ModuleDict(
+        #     dict(
+        #         wte=nn.Embedding(config.vocab_size, config.n_embd),
+        #         # wpe = nn.Embedding(config.block_size, config.n_embd),
+        #         # drop = nn.Dropout(config.dropout),
+        #         h=nn.ModuleList([Block(config) for _ in range(config.n_layer)]),
+        #         ln_f=RMSNorm(config.n_embd, eps=config.norm_eps),
+        #     )
+        # )
+        self.transformer = TransformerWrapper(
+            num_tokens = config.vocab_size,
+            max_seq_len = config.block_size,
+            use_abs_pos_emb = False,
+            attn_layers = Decoder(
+                dim = config.n_embd,
+                depth = config.n_layer,
+                heads = config.n_head,
+                attn_flash = True,
+                use_rmsnorm = True,
+                ff_no_bias = True,
             )
         )
-        self.lm_head = nn.Linear(config.n_embd, config.vocab_size, bias=False)
+        # self.lm_head = nn.Linear(config.n_embd, config.vocab_size, bias=False)
         # with weight tying when using torch.compile() some warnings get generated:
         # "UserWarning: functional_call was passed multiple values for tied weights.
         # This behavior is deprecated and will be an error in future versions"
         # not 100% sure what this is, so far seems to be harmless. TODO investigate
         # self.transformer.wte.weight = self.lm_head.weight # https://paperswithcode.com/method/weight-tying
 
-        # init all weights
-        self.apply(self._init_weights)
-        # apply special scaled init to the residual projections, per GPT-2 paper
-        for pn, p in self.named_parameters():
-            if pn.endswith("c_proj.weight"):
-                nn.init.normal_(p, mean=0.0, std=0.02 / math.sqrt(2 * config.n_layer))
+        # # init all weights
+        # self.apply(self._init_weights)
+        # # apply special scaled init to the residual projections, per GPT-2 paper
+        # for pn, p in self.named_parameters():
+        #     if pn.endswith("c_proj.weight"):
+        #         nn.init.normal_(p, mean=0.0, std=0.02 / math.sqrt(2 * config.n_layer))
 
         # report number of parameters
         n_params = sum(p.numel() for p in self.parameters())
@@ -178,25 +193,27 @@ class GPT(nn.Module):
         # assert t <= self.config.block_size, f"Cannot forward sequence of length {t}, block size is only {self.config.block_size}"
         # pos = torch.arange(0, t, dtype=torch.long, device=device) # shape (t)
 
-        # forward the GPT model itself
-        tok_emb = self.transformer.wte(idx)  # token embeddings of shape (b, t, n_embd)
-        # pos_emb = self.transformer.wpe(pos) # position embeddings of shape (t, n_embd)
-        # x = self.transformer.drop(tok_emb + pos_emb)
-        x = tok_emb
-        for block in self.transformer.h:
-            x = block(x)
-        x = self.transformer.ln_f(x)
+        # # forward the GPT model itself
+        # tok_emb = self.transformer.wte(idx)  # token embeddings of shape (b, t, n_embd)
+        # # pos_emb = self.transformer.wpe(pos) # position embeddings of shape (t, n_embd)
+        # # x = self.transformer.drop(tok_emb + pos_emb)
+        # x = tok_emb
+        # for block in self.transformer.h:
+        #     x = block(x)
+        # x = self.transformer.ln_f(x)
+
+        logits = self.transformer(idx)
 
         if targets is not None:
             # if we are given some desired targets also calculate the loss
-            logits = self.lm_head(x)
+            # logits = self.lm_head(x)
             loss = F.cross_entropy(
                 logits.view(-1, logits.size(-1)), targets.view(-1), ignore_index=-1
             )
         else:
             # inference-time mini-optimization: only forward the lm_head on the very last position
             # note: using list [-1] to preserve the time dim
-            logits = self.lm_head(x[:, [-1], :])
+            # logits = self.lm_head(x[:, [-1], :])
             loss = None
 
         return logits, loss

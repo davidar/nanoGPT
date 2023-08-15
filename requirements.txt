@@ -10,6 +10,7 @@ cmake==3.27.0
 datasets==2.14.2
 dill==0.3.7
 docker-pycreds==0.4.0
+einops==0.6.1
 filelock==3.12.2
 frozenlist==1.4.0
 fsspec==2023.6.0
@@ -66,5 +67,6 @@ typing_extensions==4.7.1
 tzdata==2023.3
 urllib3==2.0.4
 wandb==0.15.7
+x-transformers==1.17.2
 xxhash==3.3.0
 yarl==1.9.2
