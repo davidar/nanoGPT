@@ -15,7 +15,7 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
-from x_transformers import TransformerWrapper, Decoder
+from x_transformers.x_transformers import TransformerWrapper, AttentionLayers
 
 
 class RMSNorm(nn.Module):
@@ -149,17 +149,22 @@ class GPT(nn.Module):
         #     )
         # )
         self.transformer = TransformerWrapper(
-            num_tokens = config.vocab_size,
-            max_seq_len = config.block_size,
-            use_abs_pos_emb = False,
-            attn_layers = Decoder(
-                dim = config.n_embd,
-                depth = config.n_layer,
-                heads = config.n_head,
-                attn_flash = True,
-                use_rmsnorm = True,
-                ff_no_bias = True,
-            )
+            num_tokens=config.vocab_size,
+            max_seq_len=config.block_size,
+            use_abs_pos_emb=False,
+            attn_layers=AttentionLayers(
+                causal=True,
+                dim=config.n_embd,
+                depth=config.n_layer,
+                heads=config.n_head,
+                attn_dim_head=64,
+                attn_flash=True,
+                use_rmsnorm=True,
+                ff_no_bias=True,
+                attn_num_mem_kv=16,
+                custom_layers=["a"] * config.n_layer,
+                alibi_pos_bias=True,
+            ),
         )
         # self.lm_head = nn.Linear(config.n_embd, config.vocab_size, bias=False)
         # with weight tying when using torch.compile() some warnings get generated:
