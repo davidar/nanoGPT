@@ -161,9 +161,11 @@ class GPT(nn.Module):
                 attn_flash=True,
                 use_rmsnorm=True,
                 ff_no_bias=True,
-                attn_num_mem_kv=16,
+                attn_num_mem_kv=256,
                 custom_layers=["a"] * config.n_layer,
                 alibi_pos_bias=True,
+                # rotary_pos_emb=True,
+                # rotary_xpos=True,
             ),
         )
         # self.lm_head = nn.Linear(config.n_embd, config.vocab_size, bias=False)
